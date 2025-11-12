@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PersonalityQuiz.MainPage">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="30,0" Spacing="25">
+
+            <Label
+                Text="Which Animal Crossing character are you?"
+                Style="{StaticResource Headline}"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <VerticalStackLayout Padding="20" Spacing="12">
+                <Label x:Name="QuestionLabel"
+                       FontSize="24"
+                       HorizontalTextAlignment="Center"
+                       Text="Your question here" />
+
+                <Image x:Name="QuestionImage"
+                       HeightRequest="200"
+                       Aspect="AspectFit"
+                       HorizontalOptions="Center" />
+
+                <ProgressBar x:Name="QuizProgressBar"
+                             HeightRequest="6"
+                             Progress="0" />
+
+                <Label x:Name="ProgressLabel"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       Text="0 / 0" />
+
+                <HorizontalStackLayout Spacing="12" HorizontalOptions="Center">
+                    <Button x:Name="TrueButton"
+                            Text="True"
+                            WidthRequest="140"
+                            Clicked="OnTrueClicked" />
+                    <Button x:Name="FalseButton"
+                            Text="False"
+                            WidthRequest="140"
+                            Clicked="OnFalseClicked" />
+                </HorizontalStackLayout>
+
+                <!-- Result UI (hidden until quiz end) -->
+                <Label x:Name="ResultLabel"
+                       FontSize="22"
+                       HorizontalTextAlignment="Center"
+                       IsVisible="False"
+                       Margin="0,8,0,0" />
+
+                <Image x:Name="ResultImage"
+                       HeightRequest="200"
+                       IsVisible="False"
+                       Aspect="AspectFit"
+                       HorizontalOptions="Center" />
+
+                <Button x:Name="ResetButton"
+                        Text="Retake Quiz"
+                        IsVisible="False"
+                        Clicked="OnResetClicked"
+                        HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
