@@ -11,6 +11,7 @@ namespace PersonalityQuiz
         private readonly List<Character> characters;
         private int currentIndex;
         private static readonly Random rnd = new();
+        private bool quizFinished = false;
 
         public MainPage()
         {
@@ -72,13 +73,11 @@ namespace PersonalityQuiz
                 c.CharacterScore = 0;
 
             currentIndex = 0;
+            quizFinished = false;
 
             ResultLabel.IsVisible = false;
             ResultImage.IsVisible = false;
             ResetButton.IsVisible = false;
-
-            TrueButton.IsVisible = TrueButton.IsEnabled = true;
-            FalseButton.IsVisible = FalseButton.IsEnabled = true;
 
             QuestionLabel.IsVisible = true;
             QuestionImage.IsVisible = true;
@@ -101,6 +100,10 @@ namespace PersonalityQuiz
 
         private void RecordAnswer(bool answeredTrue)
         {
+            // Defensive guard: ignore answers if index is out of range
+            if (currentIndex < 0 || currentIndex >= questionList.Count)
+                return;
+
             var q = questionList[currentIndex];
 
             if (answeredTrue)
@@ -130,7 +133,8 @@ namespace PersonalityQuiz
 
         private void ShowResult()
         {
-            TrueButton.IsVisible = FalseButton.IsVisible = false;
+            quizFinished = true;
+
             QuizProgressBar.Progress = 1;
             ProgressLabel.Text = $"{questionList.Count} / {questionList.Count}";
 
@@ -150,11 +154,32 @@ namespace PersonalityQuiz
             ResultImage.IsVisible = true;
             ResetButton.IsVisible = true;
 
+            // Hide the last question UI so it is not visible when showing results
+            QuestionLabel.IsVisible = false;
             QuestionImage.IsVisible = false;
         }
 
-        private void OnTrueClicked(object sender, EventArgs e) => RecordAnswer(true);
-        private void OnFalseClicked(object sender, EventArgs e) => RecordAnswer(false);
+        // Swipes on the question image drive answers:
+        private void OnSwiped(object sender, SwipedEventArgs e)
+        {
+            // Prevent swipes after quiz finished
+            if (quizFinished)
+                return;
+
+            switch (e.Direction)
+            {
+                case SwipeDirection.Left:
+                    RecordAnswer(false);
+                    break;
+                case SwipeDirection.Right:
+                    RecordAnswer(true);
+                    break;
+                default:
+                    // ignore Up/Down or other directions
+                    break;
+            }
+        }
+
         private void OnResetClicked(object sender, EventArgs e) => ResetQuiz();
     }
 }
