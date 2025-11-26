@@ -1,185 +1,108 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.Maui.Controls;
+﻿using Microsoft.Maui.Controls;
+using System;
+using System.Threading.Tasks;
+using PersonalityQuiz.Services;
 
 namespace PersonalityQuiz
 {
     public partial class MainPage : ContentPage
     {
-        private readonly List<QuizQuestion> questionList;
-        private readonly List<Character> characters;
-        private int currentIndex;
-        private static readonly Random rnd = new();
-        private bool quizFinished = false;
+        private readonly QuestionService _questionService;
+        private int _currentIndex = 0;
+        private bool _loaded = false;
 
-        public MainPage()
+        public MainPage(QuestionService questionService)
         {
             InitializeComponent();
+            _questionService = questionService;
 
-            questionList = new List<QuizQuestion>()
-            {
-                new QuizQuestion(
-                    "You rather manage a new island development than relax on the beach",
-                    "island.jpg",
-                    2, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0
-                ),
-
-                new QuizQuestion(
-                    "You enjoy organizing events and helping others feel welcomed",
-                    "desk.jpg",
-                    0, 2, 0, 0, 0,
-                    0, 0, 1, 0, 0
-                ),
-
-                new QuizQuestion(
-                    "Playing or creating music instantly lift your mood",
-                    "guitar.jpg",
-                    0, 0, 2, 0, 0,
-                    0, 0, 0, 1, 0
-                ),
-
-                new QuizQuestion(
-                    "You prefer having a stylish, compact lifestyle with high standards",
-                    "cafe.jpg",
-                    0, 0, 0, 2, 0,
-                    0, 0, 0, 0, 1
-                ),
-
-                new QuizQuestion(
-                    "You choose a clever, business-like solution over something sentimental",
-                    "computer.jpg",
-                    0, 0, 0, 0, 2,
-                    1, 0, 0, 0, 0
-                )
-            };
-
-            characters = new List<Character>()
-            {
-                new Character("Tom Nook", "tomnook.png"),
-                new Character("Isabelle", "isabelle.jpg"),
-                new Character("K.K. Slider", "kkslider.jpg"),
-                new Character("Marshal", "marshal.png"),
-                new Character("Raymond", "raymond.png")
-            };
-
-            ResetQuiz();
+            Loaded += MainPage_Loaded;
         }
 
-        private void ResetQuiz()
+        private async void MainPage_Loaded(object sender, EventArgs e)
         {
-            foreach (var c in characters)
-                c.CharacterScore = 0;
+            // Load questions from database
+            await _questionService.LoadQuestionsAsync();
 
-            currentIndex = 0;
-            quizFinished = false;
+            if (_questionService.TotalQuestions == 0)
+            {
+                await DisplayAlert("Error", "No questions found in database.", "OK");
+                return;
+            }
 
-            ResultLabel.IsVisible = false;
-            ResultImage.IsVisible = false;
-            ResetButton.IsVisible = false;
-
-            QuestionLabel.IsVisible = true;
-            QuestionImage.IsVisible = true;
-
-            QuizProgressBar.Progress = 0;
+            _loaded = true;
             LoadQuestion();
         }
 
         private void LoadQuestion()
         {
-            if (currentIndex < 0 || currentIndex >= questionList.Count)
+            if (!_loaded)
                 return;
 
-            var q = questionList[currentIndex];
+            var q = _questionService.GetQuestion(_currentIndex);
+
+            if (q == null)
+            {
+                NavigateToResults();
+                return;
+            }
+
             QuestionLabel.Text = q.Text;
             QuestionImage.Source = q.ImageSource;
-            QuizProgressBar.Progress = (double)currentIndex / questionList.Count;
-            ProgressLabel.Text = $"{currentIndex + 1} / {questionList.Count}";
+
+            QuizProgressBar.Progress = (double)_currentIndex / _questionService.TotalQuestions;
+            ProgressLabel.Text = $"{_currentIndex + 1} / {_questionService.TotalQuestions}";
         }
 
-        private void RecordAnswer(bool answeredTrue)
+        private async Task HandleAnswerAsync(bool answer)
         {
-            // Defensive guard: ignore answers if index is out of range
-            if (currentIndex < 0 || currentIndex >= questionList.Count)
+            var q = _questionService.GetQuestion(_currentIndex);
+
+            if (q == null)
+            {
+                NavigateToResults();
                 return;
-
-            var q = questionList[currentIndex];
-
-            if (answeredTrue)
-            {
-                characters[0].CharacterScore += q.TrueTomNook;
-                characters[1].CharacterScore += q.TrueIsabelle;
-                characters[2].CharacterScore += q.TrueKKSlider;
-                characters[3].CharacterScore += q.TrueMarshal;
-                characters[4].CharacterScore += q.TrueRaymond;
-            }
-            else
-            {
-                characters[0].CharacterScore += q.FalseTomNook;
-                characters[1].CharacterScore += q.FalseIsabelle;
-                characters[2].CharacterScore += q.FalseKKSlider;
-                characters[3].CharacterScore += q.FalseMarshal;
-                characters[4].CharacterScore += q.FalseRaymond;
             }
 
-            currentIndex++;
+            // Save answer to DB-based score logic
+            _questionService.RecordAnswer(q, answer);
 
-            if (currentIndex >= questionList.Count)
-                ShowResult();
+            // Animate card swipe
+            await QuestionImage.TranslateTo(answer ? 300 : -300, 0, 250, Easing.CubicIn);
+            await QuestionImage.FadeTo(0, 150);
+
+            // Reset position
+            QuestionImage.TranslationX = 0;
+            await QuestionImage.FadeTo(1, 150);
+
+            // Next question
+            _currentIndex++;
+
+            if (_currentIndex >= _questionService.TotalQuestions)
+                NavigateToResults();
             else
                 LoadQuestion();
         }
 
-        private void ShowResult()
+        private async void OnSwiped(object sender, SwipedEventArgs e)
         {
-            quizFinished = true;
-
-            QuizProgressBar.Progress = 1;
-            ProgressLabel.Text = $"{questionList.Count} / {questionList.Count}";
-
-            int max = characters.Max(c => c.CharacterScore);
-            var winners = characters.Where(c => c.CharacterScore == max).ToList();
-
-            Character chosen;
-            if (winners.Count == 1)
-                chosen = winners[0];
-            else
-                chosen = winners[rnd.Next(winners.Count)];
-
-            ResultLabel.Text = $"You match: {chosen.CharacterName}!";
-            ResultImage.Source = chosen.CharacterImageSource;
-
-            ResultLabel.IsVisible = true;
-            ResultImage.IsVisible = true;
-            ResetButton.IsVisible = true;
-
-            // Hide the last question UI so it is not visible when showing results
-            QuestionLabel.IsVisible = false;
-            QuestionImage.IsVisible = false;
-        }
-
-        // Swipes on the question image drive answers:
-        private void OnSwiped(object sender, SwipedEventArgs e)
-        {
-            // Prevent swipes after quiz finished
-            if (quizFinished)
+            if (!_loaded)
                 return;
 
-            switch (e.Direction)
-            {
-                case SwipeDirection.Left:
-                    RecordAnswer(false);
-                    break;
-                case SwipeDirection.Right:
-                    RecordAnswer(true);
-                    break;
-                default:
-                    // ignore Up/Down or other directions
-                    break;
-            }
+            if (e.Direction == SwipeDirection.Right)
+                await HandleAnswerAsync(true);
+            else if (e.Direction == SwipeDirection.Left)
+                await HandleAnswerAsync(false);
         }
 
-        private void OnResetClicked(object sender, EventArgs e) => ResetQuiz();
+        private async void NavigateToResults()
+        {
+            var resultCharacter = _questionService.CalculateResult();
+
+            await Navigation.PushAsync(new ResultPage(resultCharacter));
+
+            // Reset for next quiz attempt if you return later
+            _currentIndex = 0;
+        }
     }
 }

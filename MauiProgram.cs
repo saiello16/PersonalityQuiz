@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using PersonalityQuiz.Data;
+using PersonalityQuiz.Services;
 
 namespace PersonalityQuiz
 {
@@ -18,7 +20,13 @@ namespace PersonalityQuiz
 #if DEBUG
     		builder.Logging.AddDebug();
 #endif
+            string dbPath = Path.Combine(
+            FileSystem.AppDataDirectory,
+            "quiz.db"
+        );
 
+            builder.Services.AddSingleton<QuizDatabase>(s => new QuizDatabase(dbPath));
+            builder.Services.AddSingleton<QuestionService>();
             return builder.Build();
         }
     }
